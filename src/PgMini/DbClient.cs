@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Data;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -22,7 +24,7 @@ public sealed class DbClient : IDbClient, IAsyncDisposable
     // Static so it is shared across all DbClient instances (connection strings don't affect mappings).
     private static readonly ConcurrentDictionary<Type, ColumnMapping[]> _mappingCache = new();
 
-    private record ColumnMapping(PropertyInfo Property, string ColumnName, string? TypeName);
+    private sealed record ColumnMapping(PropertyInfo Property, string ColumnName, string? TypeName);
 
     /// <summary>
     /// Initialises a client that shares an externally-owned <see cref="NpgsqlDataSource"/>.
@@ -119,6 +121,70 @@ public sealed class DbClient : IDbClient, IAsyncDisposable
         };
     }
 
+    /// <inheritdoc />
+    public Task<List<T>> ReadPagedAsync<T>(
+        string query,
+        int pageSize,
+        int offset = 0,
+        List<QueryParams>? parameters = null,
+        NpgsqlTransaction? transaction = null,
+        CancellationToken cancellationToken = default
+    ) where T : new()
+    {
+        // Append LIMIT/OFFSET using reserved internal parameter names that won't clash with caller params.
+        var pagedQuery = $"{query.TrimEnd(';', ' ', '\n', '\r', '\t')} LIMIT @__pgmini_limit OFFSET @__pgmini_offset";
+        var pagedParams = (parameters ?? [])
+            .Concat([QueryParams.Of("__pgmini_limit", pageSize), QueryParams.Of("__pgmini_offset", offset)])
+            .ToList();
+        return ReadAsync<T>(pagedQuery, pagedParams, transaction, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<T> StreamAsync<T>(
+        string query,
+        List<QueryParams>? parameters = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    ) where T : new()
+    {
+        var mappings = GetMappings(typeof(T));
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(query, connection);
+        ApplyParameters(command, parameters);
+
+        NpgsqlDataReader reader;
+        try
+        {
+            reader = await command.ExecuteReaderAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogQueryError(ex.Message, query, parameters);
+            throw;
+        }
+
+        await using (reader)
+        {
+            var columnOrdinals = BuildOrdinalMap(reader);
+            var activeMappings = ResolveActiveMappings(mappings, columnOrdinals);
+
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var row = new T();
+                foreach (var (mapping, ordinal) in activeMappings)
+                {
+                    var value = mapping.TypeName switch
+                    {
+                        "jsonb" or "json" => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<JsonDocument>(ordinal),
+                        _ => reader.IsDBNull(ordinal) ? null : reader.GetValue(ordinal)
+                    };
+                    mapping.Property.SetValue(row, value);
+                }
+                yield return row;
+            }
+        }
+    }
+
     // ── Exists ─────────────────────────────────────────────────────────────────
 
     /// <inheritdoc />
@@ -191,7 +257,7 @@ public sealed class DbClient : IDbClient, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError("Batch execution failed: {Error}", ex.Message);
+            _logger.LogBatchError(ex.Message);
             throw;
         }
     }
@@ -230,12 +296,16 @@ public sealed class DbClient : IDbClient, IAsyncDisposable
     // ── Transactional pipeline ─────────────────────────────────────────────────
 
     /// <inheritdoc />
-    public async Task<T?> RunTransactional<T>(Transaction tx, CancellationToken cancellationToken = default)
+    public async Task<T?> RunTransactional<T>(
+        Transaction tx,
+        IsolationLevel isolationLevel = IsolationLevel.ReadCommitted,
+        CancellationToken cancellationToken = default
+    )
     {
-        _logger.LogInformation("=== Transaction [{Name}] Start ===", tx.TransactionGroupName);
+        _logger.LogTransactionStart(tx.TransactionGroupName);
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(isolationLevel, cancellationToken);
 
         try
         {
@@ -257,7 +327,7 @@ public sealed class DbClient : IDbClient, IAsyncDisposable
             }
 
             await transaction.CommitAsync(cancellationToken);
-            _logger.LogInformation("=== Transaction [{Name}] Committed ===", tx.TransactionGroupName);
+            _logger.LogTransactionCommitted(tx.TransactionGroupName);
             return (T?)result;
         }
         catch (Exception ex)
@@ -268,7 +338,7 @@ public sealed class DbClient : IDbClient, IAsyncDisposable
         }
         finally
         {
-            _logger.LogInformation("=== Transaction [{Name}] End ===", tx.TransactionGroupName);
+            _logger.LogTransactionEnd(tx.TransactionGroupName);
         }
     }
 

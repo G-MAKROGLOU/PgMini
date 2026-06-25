@@ -1,0 +1,27 @@
+name: Release Please
+
+# Watches main for conventional commits and auto-creates a versioned release PR.
+# When the PR is merged, it tags the commit (v1.x.x) which triggers publish.yml.
+#
+# Commit format that drives version bumps:
+#   fix:        → patch  (1.0.1)
+#   feat:       → minor  (1.1.0)
+#   feat!: or BREAKING CHANGE: → major (2.0.0)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

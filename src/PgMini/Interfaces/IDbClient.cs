@@ -1,3 +1,4 @@
+using System.Data;
 using Npgsql;
 using PgMini.Delegates;
 using PgMini.Models;
@@ -36,6 +37,30 @@ public interface IDbClient
         string query,
         List<QueryParams>? parameters = null,
         NpgsqlTransaction? transaction = null,
+        CancellationToken cancellationToken = default
+    ) where T : new();
+
+    /// <summary>
+    /// Executes <paramref name="query"/> and returns one page of results.
+    /// Appends <c>LIMIT</c> and <c>OFFSET</c> automatically — do NOT include them in your query.
+    /// </summary>
+    Task<List<T>> ReadPagedAsync<T>(
+        string query,
+        int pageSize,
+        int offset = 0,
+        List<QueryParams>? parameters = null,
+        NpgsqlTransaction? transaction = null,
+        CancellationToken cancellationToken = default
+    ) where T : new();
+
+    /// <summary>
+    /// Streams rows from <paramref name="query"/> as an <see cref="IAsyncEnumerable{T}"/>,
+    /// yielding each row as it arrives without buffering the full result set in memory.
+    /// Ideal for large result sets or when processing rows one-by-one is sufficient.
+    /// </summary>
+    IAsyncEnumerable<T> StreamAsync<T>(
+        string query,
+        List<QueryParams>? parameters = null,
         CancellationToken cancellationToken = default
     ) where T : new();
 
@@ -81,11 +106,16 @@ public interface IDbClient
     // ── Transactional pipeline ─────────────────────────────────────────────────
 
     /// <summary>
-    /// Runs all steps in <paramref name="tx"/> inside a single PostgreSQL transaction.
+    /// Runs all steps in <paramref name="tx"/> inside a single PostgreSQL transaction at the
+    /// specified <paramref name="isolationLevel"/> (default: <see cref="IsolationLevel.ReadCommitted"/>).
     /// Commits on success; rolls back and rethrows on any exception.
     /// Returns the result of the last step, cast to <typeparamref name="T"/>.
     /// </summary>
-    Task<T?> RunTransactional<T>(Transaction tx, CancellationToken cancellationToken = default);
+    Task<T?> RunTransactional<T>(
+        Transaction tx,
+        IsolationLevel isolationLevel = IsolationLevel.ReadCommitted,
+        CancellationToken cancellationToken = default
+    );
 
     // ── Step builder helpers ───────────────────────────────────────────────────
 
