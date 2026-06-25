@@ -7,6 +7,9 @@
         <LangVersion>latest</LangVersion>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <NoWarn>$(NoWarn);1591</NoWarn>
+        <EnableNETAnalyzers>true</EnableNETAnalyzers>
+        <AnalysisLevel>latest-recommended</AnalysisLevel>
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 
         <!-- NuGet Package Metadata -->
         <PackageId>PgMini</PackageId>
@@ -30,6 +33,7 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
         <PackageReference Include="MinVer" Version="5.0.0" PrivateAssets="all" />
         <PackageReference Include="Npgsql" Version="9.0.2" />
+        <PackageReference Include="Roslynator.Analyzers" Version="4.12.10" PrivateAssets="all" />
     </ItemGroup>
 
 </Project>
