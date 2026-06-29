@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
+using System.Data.Common;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -20,11 +22,27 @@ public sealed class DbClient : IDbClient, IAsyncDisposable
     private readonly ILogger<DbClient> _logger;
     private readonly bool _ownsDataSource;
 
-    // Reflection cache: keyed by CLR type, value is the set of mapped columns.
-    // Static so it is shared across all DbClient instances (connection strings don't affect mappings).
+    // Per-type mapping cache — shared across all DbClient instances.
+    // Entries are built once (on first query for a type) and reused on every subsequent call.
     private static readonly ConcurrentDictionary<Type, ColumnMapping[]> _mappingCache = new();
 
-    private sealed record ColumnMapping(PropertyInfo Property, string ColumnName, string? TypeName);
+    // Open generic definition of DbDataReader.GetFieldValue<T>(int) — used to emit typed readers.
+    private static readonly MethodInfo _getFieldValueDef =
+        typeof(DbDataReader).GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .First(m => m.Name == nameof(DbDataReader.GetFieldValue) &&
+                        m.IsGenericMethodDefinition &&
+                        m.GetGenericArguments().Length == 1 &&
+                        m.GetParameters().Length == 1 &&
+                        m.GetParameters()[0].ParameterType == typeof(int));
+
+    // Mapper — compiled once per property; calls the typed reader and sets the property directly,
+    // eliminating both PropertyInfo.SetValue overhead and value-type boxing from GetValue().
+    private sealed record ColumnMapping(
+        PropertyInfo Property,
+        string ColumnName,
+        string? TypeName,
+        Action<NpgsqlDataReader, int, object> Mapper
+    );
 
     /// <summary>
     /// Initialises a client that shares an externally-owned <see cref="NpgsqlDataSource"/>.
@@ -173,12 +191,8 @@ public sealed class DbClient : IDbClient, IAsyncDisposable
                 var row = new T();
                 foreach (var (mapping, ordinal) in activeMappings)
                 {
-                    var value = mapping.TypeName switch
-                    {
-                        "jsonb" or "json" => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<JsonDocument>(ordinal),
-                        _ => reader.IsDBNull(ordinal) ? null : reader.GetValue(ordinal)
-                    };
-                    mapping.Property.SetValue(row, value);
+                    if (!reader.IsDBNull(ordinal))
+                        mapping.Mapper(reader, ordinal, row);
                 }
                 yield return row;
             }
@@ -407,12 +421,8 @@ public sealed class DbClient : IDbClient, IAsyncDisposable
                 var row = new T();
                 foreach (var (mapping, ordinal) in activeMappings)
                 {
-                    var value = mapping.TypeName switch
-                    {
-                        "jsonb" or "json" => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<JsonDocument>(ordinal),
-                        _ => reader.IsDBNull(ordinal) ? null : reader.GetValue(ordinal)
-                    };
-                    mapping.Property.SetValue(row, value);
+                    if (!reader.IsDBNull(ordinal))
+                        mapping.Mapper(reader, ordinal, row);
                 }
                 resultSet.Add(row);
             }
@@ -465,8 +475,54 @@ public sealed class DbClient : IDbClient, IAsyncDisposable
             t.GetProperties()
              .Select(p => (Property: p, Attr: p.GetCustomAttribute<ColumnAttribute>()))
              .Where(x => x.Attr?.Name is not null)
-             .Select(x => new ColumnMapping(x.Property, x.Attr!.Name!, x.Attr.TypeName))
+             .Select(x => new ColumnMapping(
+                 x.Property,
+                 x.Attr!.Name!,
+                 x.Attr.TypeName,
+                 BuildMapper(x.Property, x.Attr.TypeName)))
              .ToArray());
+
+    // Compiles a delegate that reads the typed column value and assigns it directly to the property —
+    // no SetValue() overhead, no GetValue() boxing. Falls back to reflection for exotic types.
+    private static Action<NpgsqlDataReader, int, object> BuildMapper(PropertyInfo property, string? typeName)
+    {
+        try
+        {
+            var readerParam   = Expression.Parameter(typeof(NpgsqlDataReader), "r");
+            var ordinalParam  = Expression.Parameter(typeof(int), "i");
+            var instanceParam = Expression.Parameter(typeof(object), "obj");
+
+            var propType = property.PropertyType;
+
+            // jsonb/json: the driver returns JsonDocument regardless of the CLR property type.
+            // Nullable value types (int?, bool?…): unwrap to T so GetFieldValue<T> can be called.
+            var underlyingType = typeName is "jsonb" or "json"
+                ? typeof(JsonDocument)
+                : (Nullable.GetUnderlyingType(propType) ?? propType);
+
+            // reader.GetFieldValue<UnderlyingType>(ordinal) — typed, no boxing
+            Expression readExpr = Expression.Call(
+                readerParam,
+                _getFieldValueDef.MakeGenericMethod(underlyingType),
+                ordinalParam);
+
+            // Widen int → int? (or any T → T?) when the property is a nullable value type.
+            if (propType.IsValueType && Nullable.GetUnderlyingType(propType) is not null)
+                readExpr = Expression.Convert(readExpr, propType);
+
+            var castInstance = Expression.Convert(instanceParam, property.DeclaringType!);
+            var setExpr = Expression.Assign(Expression.Property(castInstance, property), readExpr);
+
+            return Expression.Lambda<Action<NpgsqlDataReader, int, object>>(
+                setExpr, readerParam, ordinalParam, instanceParam).Compile();
+        }
+        catch
+        {
+            // Fallback: reflection path for any type GetFieldValue<T> can't emit at this stage.
+            return (reader, ordinal, instance) =>
+                property.SetValue(instance, reader.GetValue(ordinal));
+        }
+    }
 
     private static Dictionary<string, int> BuildOrdinalMap(NpgsqlDataReader reader)
     {
