@@ -488,8 +488,8 @@ public sealed class DbClient : IDbClient, IAsyncDisposable
     {
         try
         {
-            var readerParam   = Expression.Parameter(typeof(NpgsqlDataReader), "r");
-            var ordinalParam  = Expression.Parameter(typeof(int), "i");
+            var readerParam = Expression.Parameter(typeof(NpgsqlDataReader), "r");
+            var ordinalParam = Expression.Parameter(typeof(int), "i");
             var instanceParam = Expression.Parameter(typeof(object), "obj");
 
             var propType = property.PropertyType;
