@@ -6,7 +6,7 @@
 
 A lightweight, pipeline-driven PostgreSQL client for .NET 8+.
 
-You write SQL. PgMini maps results to typed models, manages parameters, and handles transactions — nothing more.
+You write SQL. PgMini maps results to typed models, manages parameters, and handles transactions - nothing more.
 
 ---
 
@@ -22,9 +22,9 @@ You write SQL. PgMini maps results to typed models, manages parameters, and hand
 | Migrations | ✗ None | ✗ None | ✅ Full |
 | Setup | `AddPgMini(connStr)` | Manual | `AddDbContext(...)` |
 
-**PgMini is for you if** you want full SQL control, lightweight mapping, and a structured way to compose multi-step transactions — without the ceremony of a full ORM.
+**PgMini is for you if** you want full SQL control, lightweight mapping, and a structured way to compose multi-step transactions - without the ceremony of a full ORM.
 
-**PgMini is not for you if** you need LINQ queries, entity relationships, or migration tooling — use EF Core instead.
+**PgMini is not for you if** you need LINQ queries, entity relationships, or migration tooling - use EF Core instead.
 
 ---
 
@@ -43,7 +43,7 @@ Requires .NET 8+.
 ### 1. Register
 
 ```csharp
-// Program.cs — single database
+// Program.cs - single database
 builder.Services.AddPgMini("Host=localhost;Database=mydb;Username=user;Password=pass");
 
 // Or pull from config
@@ -92,7 +92,7 @@ public class VesselService(IDbClient db)
             "SELECT vessel_id, vessel_name, imo_number FROM vessels WHERE imo_number = @imo",
             [QueryParams.Of("imo", imo)]);
 
-    // Exactly one row — throws if 0 or 2+
+    // Exactly one row - throws if 0 or 2+
     public Task<Vessel> GetByIdAsync(int id) =>
         db.ReadSingleAsync<Vessel>(
             "SELECT vessel_id, vessel_name, imo_number FROM vessels WHERE vessel_id = @id",
@@ -131,7 +131,7 @@ public class AnalyticsService([FromKeyedServices("analytics")] IDbClient db)
 ## Pagination
 
 ```csharp
-// Appends LIMIT / OFFSET automatically — do NOT include them in your query.
+// Appends LIMIT / OFFSET automatically - do NOT include them in your query.
 var page = await db.ReadPagedAsync<Vessel>(
     "SELECT vessel_id, vessel_name FROM vessels ORDER BY vessel_name",
     pageSize: 20,
@@ -142,7 +142,7 @@ var page = await db.ReadPagedAsync<Vessel>(
 
 ## Streaming large result sets
 
-Use `StreamAsync<T>` when you do not want to buffer all rows into a `List<T>` first — ideal for exports, batch processing, or very large tables:
+Use `StreamAsync<T>` when you do not want to buffer all rows into a `List<T>` first - ideal for exports, batch processing, or very large tables:
 
 ```csharp
 await foreach (var vessel in db.StreamAsync<Vessel>(
@@ -229,7 +229,7 @@ Default is `ReadCommitted`.
 | Method | When to use |
 |--------|-------------|
 | `TxReadStep<T>()` | Read using query forwarded from the previous step |
-| `AutonomousTxReadStep<T>(sql, params)` | Read with a fixed query — ignores forwarded values |
+| `AutonomousTxReadStep<T>(sql, params)` | Read with a fixed query - ignores forwarded values |
 | `TxExecuteStep()` | Execute using forwarded query/params |
 | `AutonomousTxExecuteStep(sql, params)` | Execute with a fixed query |
 | `TxExecuteScalarStep<T>()` | Scalar using forwarded query/params |
@@ -289,7 +289,7 @@ builder.Services.AddPgMini(connectionString, dataSourceBuilder =>
 });
 ```
 
-### Multiple databases (keyed services — .NET 8+)
+### Multiple databases (keyed services - .NET 8+)
 
 ```csharp
 builder.Services.AddNamedPgMini("ops",       config["DB_OPS"]!);
@@ -312,7 +312,7 @@ public class ReportingService([FromKeyedServices("reporting")] IDbClient db) { .
 | `ReadAsync<T>(query, params?, tx?, ct?)` | `Task<List<T>>` | All matching rows |
 | `ReadFirstOrDefaultAsync<T>(query, params?, tx?, ct?)` | `Task<T?>` | First row or `null` |
 | `ReadSingleAsync<T>(query, params?, tx?, ct?)` | `Task<T>` | Exactly one row; throws if 0 or 2+ |
-| `ReadPagedAsync<T>(query, pageSize, offset?, params?, tx?, ct?)` | `Task<List<T>>` | One page — appends `LIMIT`/`OFFSET` |
+| `ReadPagedAsync<T>(query, pageSize, offset?, params?, tx?, ct?)` | `Task<List<T>>` | One page - appends `LIMIT`/`OFFSET` |
 | `StreamAsync<T>(query, params?, ct?)` | `IAsyncEnumerable<T>` | Streaming row-by-row, no full buffer |
 | `ExistsAsync(query, params?, tx?, ct?)` | `Task<bool>` | Use with `SELECT EXISTS(...)` |
 | `ExecuteAsync(query, params?, tx?, ct?)` | `Task<int>` | Rows affected |
@@ -325,7 +325,7 @@ All methods accept an optional `NpgsqlTransaction` to participate in an external
 ### `QueryParams`
 
 ```csharp
-// Factory method — preferred
+// Factory method - preferred
 QueryParams.Of("vessel_id", 42)
 
 // Record initialiser
@@ -337,8 +337,8 @@ Pass `null` as `Value` to bind SQL `NULL`.
 ### `[Column]` attribute
 
 ```csharp
-[Column("db_column_name")]               // standard column — maps by name
-[Column("payload", TypeName = "jsonb")]  // JSONB column — property type must be JsonDocument / JsonDocument?
+[Column("db_column_name")]               // standard column - maps by name
+[Column("payload", TypeName = "jsonb")]  // JSONB column - property type must be JsonDocument / JsonDocument?
 ```
 
 Use `System.ComponentModel.DataAnnotations.Schema.ColumnAttribute`. Properties without `[Column]` are ignored. Column name matching is case-insensitive.
@@ -347,12 +347,12 @@ Use `System.ComponentModel.DataAnnotations.Schema.ColumnAttribute`. Properties w
 
 ## Performance
 
-PgMini uses compiled Expression Trees to map query results to your models — the same technique used by Dapper. Mappings are compiled once per CLR type and cached; subsequent calls pay zero reflection cost.
+PgMini uses compiled Expression Trees to map query results to your models - the same technique used by Dapper. Mappings are compiled once per CLR type and cached; subsequent calls pay zero reflection cost.
 
 ### How it works
 
-1. **First query for a type** — PgMini inspects the `[Column]` attributes once, compiles a typed setter delegate per property (`reader.GetFieldValue<T>(ordinal)` → direct property assignment), and caches them in a `ConcurrentDictionary<Type, ColumnMapping[]>`.
-2. **Every subsequent query** — ordinals are resolved from the result schema (once per query, outside the row loop), then the compiled delegates are called directly. No `PropertyInfo.SetValue`, no `GetValue` boxing.
+1. **First query for a type** - PgMini inspects the `[Column]` attributes once, compiles a typed setter delegate per property (`reader.GetFieldValue<T>(ordinal)` → direct property assignment), and caches them in a `ConcurrentDictionary<Type, ColumnMapping[]>`.
+2. **Every subsequent query** - ordinals are resolved from the result schema (once per query, outside the row loop), then the compiled delegates are called directly. No `PropertyInfo.SetValue`, no `GetValue` boxing.
 
 ### Benchmark projections (local PostgreSQL, .NET 8)
 
@@ -398,9 +398,9 @@ Versions are derived automatically from git tags via [MinVer](https://github.com
 
 | Commit prefix | Version bump |
 |---------------|-------------|
-| `fix: ...` | patch — `1.0.1` |
-| `feat: ...` | minor — `1.1.0` |
-| `feat!: ...` or `BREAKING CHANGE:` footer | major — `2.0.0` |
+| `fix: ...` | patch - `1.0.1` |
+| `feat: ...` | minor - `1.1.0` |
+| `feat!: ...` or `BREAKING CHANGE:` footer | major - `2.0.0` |
 
 Push to `main` with conventional commits → Release Please opens a release PR. Merging the PR creates a version tag → the publish workflow pushes the package to NuGet automatically.
 
@@ -417,11 +417,11 @@ git push origin v1.0.0
 
 1. Fork and create a feature branch
 2. Use conventional commit messages (`feat:`, `fix:`, `perf:`, etc.)
-3. Ensure `dotnet test` passes — integration tests require Docker (Testcontainers spins up PostgreSQL automatically)
+3. Ensure `dotnet test` passes - integration tests require Docker (Testcontainers spins up PostgreSQL automatically)
 4. Open a pull request against `main`
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
