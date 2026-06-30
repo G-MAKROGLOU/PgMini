@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using PgMini.Interfaces;
@@ -38,6 +39,8 @@ public static class ServiceCollectionExtensions
                 sp.GetRequiredService<NpgsqlDataSource>(),
                 sp.GetRequiredService<ILogger<DbClient>>()));
 
+        services.TryAddSingleton<IDbClientProvider, DbClientProvider>();
+
         return services;
     }
 
@@ -73,6 +76,18 @@ public static class ServiceCollectionExtensions
                 sp.GetRequiredKeyedService<NpgsqlDataSource>((string)key!),
                 sp.GetRequiredService<ILogger<DbClient>>()));
 
+        services.TryAddSingleton<IDbClientProvider, DbClientProvider>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers <see cref="IDbClientProvider"/> without registering any <see cref="IDbClient"/>.
+    /// Use this when clients are registered manually (e.g. with keyed singletons resolved via async factories).
+    /// </summary>
+    public static IServiceCollection AddDbClientProvider(this IServiceCollection services)
+    {
+        services.TryAddSingleton<IDbClientProvider, DbClientProvider>();
         return services;
     }
 }
