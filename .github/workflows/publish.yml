@@ -36,7 +36,9 @@ jobs:
         run: dotnet test --no-build --configuration Release --verbosity normal
 
       - name: Pack
-        run: dotnet pack src/PgMini/PgMini.csproj --no-build --configuration Release --output ./artifacts
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          dotnet pack src/PgMini/PgMini.csproj --no-build --configuration Release --output ./artifacts -p:Version=$VERSION
 
       - name: NuGet login
         uses: NuGet/login@v1
