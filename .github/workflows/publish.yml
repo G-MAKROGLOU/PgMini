@@ -12,17 +12,17 @@ jobs:
     environment: production
     permissions:
       contents: read
-      id-token: write   # required for NuGet Trusted Publishing (OIDC)
+      id-token: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
-          fetch-depth: 0    # MinVer reads all tags
-          fetch-tags: true  # ensure tags are fetched even on force-pushed refs
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
 
@@ -38,11 +38,15 @@ jobs:
       - name: Pack
         run: dotnet pack src/PgMini/PgMini.csproj --no-build --configuration Release --output ./artifacts
 
+      - name: NuGet login
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Push to NuGet
         run: |
-          OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" | jq -r '.value')
           dotnet nuget push ./artifacts/*.nupkg \
-            --api-key "$OIDC_TOKEN" \
+            --api-key ${{ steps.login.outputs.NUGET_API_KEY }} \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
