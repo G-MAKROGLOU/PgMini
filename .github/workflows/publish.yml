@@ -38,24 +38,11 @@ jobs:
       - name: Pack
         run: dotnet pack src/PgMini/PgMini.csproj --no-build --configuration Release --output ./artifacts
 
-      - name: Get NuGet token via OIDC
-        id: nuget-token
-        run: |
-          OIDC_RESPONSE=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange")
-          echo "OIDC response type: $(echo "$OIDC_RESPONSE" | jq -r 'type' 2>/dev/null || echo 'not JSON')"
-          OIDC_TOKEN=$(echo "$OIDC_RESPONSE" | jq -r '.value')
-
-          NUGET_RESPONSE=$(curl -sS -X POST "https://www.nuget.org/api/v1/trust/authenticate" \
-            -H "Content-Type: application/json" \
-            -d "{\"oidcToken\": \"$OIDC_TOKEN\"}")
-          echo "NuGet response keys: $(echo "$NUGET_RESPONSE" | jq -r 'keys' 2>/dev/null || echo 'not JSON')"
-          NUGET_TOKEN=$(echo "$NUGET_RESPONSE" | jq -r '.apiKey')
-          echo "nuget_token=$NUGET_TOKEN" >> "$GITHUB_OUTPUT"
-
       - name: Push to NuGet
         run: |
+          OIDC_TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" | jq -r '.value')
           dotnet nuget push ./artifacts/*.nupkg \
-            --api-key ${{ steps.nuget-token.outputs.nuget_token }} \
+            --api-key "$OIDC_TOKEN" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
