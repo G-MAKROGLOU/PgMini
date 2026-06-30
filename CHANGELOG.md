@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.3](https://github.com/G-MAKROGLOU/PgMini/compare/v1.0.2...v1.0.3) (2026-06-30)
+
+
+### 🐛 Bug Fixes
+
+* guard expensive log arguments with IsEnabled checks (CA1873) ([6c26a02](https://github.com/G-MAKROGLOU/PgMini/commit/6c26a029a8c075ea9a180df271edc6bab59f977f))
+* guard expensive log arguments with IsEnabled checks (CA1873) ([70e69c7](https://github.com/G-MAKROGLOU/PgMini/commit/70e69c71de43e5eb1453f4e3d980797d93431760))
+* resolve version before build so MinVer is overridden at all steps ([3468aff](https://github.com/G-MAKROGLOU/PgMini/commit/3468aff9b6a2362c66a3c243a71cc4070634a1f7))
+* resolve version before build so MinVer is overridden at all steps ([3cd6422](https://github.com/G-MAKROGLOU/PgMini/commit/3cd6422ec3182ff02c97f1d931a36a575e9b25c5))
+
 ## [1.0.2](https://github.com/G-MAKROGLOU/PgMini/compare/v1.0.1...v1.0.2) (2026-06-30)
 
 
