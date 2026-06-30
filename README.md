@@ -1,7 +1,7 @@
 # PgMini
 
 [![NuGet](https://img.shields.io/nuget/v/PgMini.svg)](https://www.nuget.org/packages/PgMini)
-[![CI](https://github.com/gmakroglou/PgMini/actions/workflows/ci.yml/badge.svg)](https://github.com/gmakroglou/PgMini/actions/workflows/ci.yml)
+[![CI](https://github.com/G-MAKROGLOU/PgMini/actions/workflows/ci.yml/badge.svg)](https://github.com/G-MAKROGLOU/PgMini/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A lightweight, pipeline-driven PostgreSQL client for .NET 8+.
