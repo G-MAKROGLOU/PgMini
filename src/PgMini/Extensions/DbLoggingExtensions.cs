@@ -9,17 +9,29 @@ internal static partial class DbLoggingExtensions
 {
     // ── Public wrappers (called by DbClient) ──────────────────────────────────
 
-    internal static void LogQueryError(this ILogger logger, string message, string query, List<QueryParams>? parameters) =>
-        LogQueryErrorCore(logger, message, query, parameters.ParamsToString());
+    internal static void LogQueryError(this ILogger logger, string message, string query, List<QueryParams>? parameters)
+    {
+        if (logger.IsEnabled(LogLevel.Error))
+            LogQueryErrorCore(logger, message, query, parameters.ParamsToString());
+    }
 
-    internal static void LogReadQuery(this ILogger logger, string query, int count, List<QueryParams>? parameters) =>
-        LogReadQueryCore(logger, count, query, parameters.ParamsToString());
+    internal static void LogReadQuery(this ILogger logger, string query, int count, List<QueryParams>? parameters)
+    {
+        if (logger.IsEnabled(LogLevel.Debug))
+            LogReadQueryCore(logger, count, query, parameters.ParamsToString());
+    }
 
-    internal static void LogExecuteQuery(this ILogger logger, string query, int affected, List<QueryParams>? parameters) =>
-        LogExecuteQueryCore(logger, affected, query, parameters.ParamsToString());
+    internal static void LogExecuteQuery(this ILogger logger, string query, int affected, List<QueryParams>? parameters)
+    {
+        if (logger.IsEnabled(LogLevel.Debug))
+            LogExecuteQueryCore(logger, affected, query, parameters.ParamsToString());
+    }
 
-    internal static void LogExecuteScalarQuery<T>(this ILogger logger, string query, T? returned, List<QueryParams>? parameters) =>
-        LogExecuteScalarQueryCore(logger, returned?.ToString(), query, parameters.ParamsToString());
+    internal static void LogExecuteScalarQuery<T>(this ILogger logger, string query, T? returned, List<QueryParams>? parameters)
+    {
+        if (logger.IsEnabled(LogLevel.Debug))
+            LogExecuteScalarQueryCore(logger, returned?.ToString(), query, parameters.ParamsToString());
+    }
 
     internal static void LogColumnMappingWarning(this ILogger logger, string columnName) =>
         LogColumnMappingWarningCore(logger, columnName);
