@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/G-MAKROGLOU/PgMini/compare/v1.0.4...v1.1.0) (2026-06-30)
+
+
+### ✨ Features
+
+* add IDbClientProvider for single and multi-database client resolution ([154e62a](https://github.com/G-MAKROGLOU/PgMini/commit/154e62ad9f7a67ce2318d7bc6946f0636fface63))
+* add IDbClientProvider for single and multi-database client resolution ([0a82e14](https://github.com/G-MAKROGLOU/PgMini/commit/0a82e14c43d16e020d16d1a6b7409c6ee901a2f5))
+
 ## [1.0.4](https://github.com/G-MAKROGLOU/PgMini/compare/v1.0.3...v1.0.4) (2026-06-30)
 
 
