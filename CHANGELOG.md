@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.4](https://github.com/G-MAKROGLOU/PgMini/compare/v1.0.3...v1.0.4) (2026-06-30)
+
+
+### 🐛 Bug Fixes
+
+* skip MinVer during publish to prevent version override ([6e566d6](https://github.com/G-MAKROGLOU/PgMini/commit/6e566d6d30259810bc1d0366bfa2ce52d6a778a8))
+* skip MinVer during publish to prevent version override ([a4c20b7](https://github.com/G-MAKROGLOU/PgMini/commit/a4c20b71a9218effc5597a3c38f71feedbf30311))
+
 ## [1.0.3](https://github.com/G-MAKROGLOU/PgMini/compare/v1.0.2...v1.0.3) (2026-06-30)
 
 
