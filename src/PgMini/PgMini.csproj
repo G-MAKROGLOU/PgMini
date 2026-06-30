@@ -14,7 +14,7 @@
         <!-- NuGet Package Metadata -->
         <PackageId>PgMini</PackageId>
         <Authors>Georgios Makroglou</Authors>
-        <Description>A lightweight, pipeline-driven PostgreSQL client for .NET with attribute-based column mapping and composable transactional step execution. No ORM magic — just clean, typed access to your database.</Description>
+        <Description>A lightweight, pipeline-driven PostgreSQL client for .NET with attribute-based column mapping and composable transactional step execution. No ORM magic, just clean, typed access to your database.</Description>
         <PackageTags>postgresql;npgsql;database;client;orm;transactions;pipeline</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/gmakroglou/PgMini</RepositoryUrl>
