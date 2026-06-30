@@ -40,13 +40,13 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release -p:Version=${{ steps.version.outputs.value }}
+        run: dotnet build --no-restore --configuration Release -p:MinVerSkip=true -p:Version=${{ steps.version.outputs.value }}
 
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal
 
       - name: Pack
-        run: dotnet pack src/PgMini/PgMini.csproj --no-build --configuration Release --output ./artifacts -p:Version=${{ steps.version.outputs.value }}
+        run: dotnet pack src/PgMini/PgMini.csproj --no-build --configuration Release --output ./artifacts -p:MinVerSkip=true -p:Version=${{ steps.version.outputs.value }}
 
       - name: NuGet login
         uses: NuGet/login@v1
