@@ -3,6 +3,11 @@ name: Publish to NuGet
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 1.0.1)'
+        required: true
 
 jobs:
   publish:
@@ -36,7 +41,8 @@ jobs:
 
       - name: Pack
         run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
+          VERSION="${{ github.event.inputs.version || github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
           dotnet pack src/PgMini/PgMini.csproj --no-build --configuration Release --output ./artifacts -p:Version=$VERSION
 
       - name: NuGet login
