@@ -30,20 +30,23 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Resolve version
+        id: version
+        run: |
+          RAW="${{ github.event.inputs.version || github.event.release.tag_name }}"
+          echo "value=${RAW#v}" >> "$GITHUB_OUTPUT"
+
       - name: Restore
         run: dotnet restore
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build --no-restore --configuration Release -p:Version=${{ steps.version.outputs.value }}
 
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal
 
       - name: Pack
-        run: |
-          VERSION="${{ github.event.inputs.version || github.event.release.tag_name }}"
-          VERSION="${VERSION#v}"
-          dotnet pack src/PgMini/PgMini.csproj --no-build --configuration Release --output ./artifacts -p:Version=$VERSION
+        run: dotnet pack src/PgMini/PgMini.csproj --no-build --configuration Release --output ./artifacts -p:Version=${{ steps.version.outputs.value }}
 
       - name: NuGet login
         uses: NuGet/login@v1
